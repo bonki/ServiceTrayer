@@ -671,17 +671,19 @@ $Sync.Tray.Add_DoubleClick({
 	Start-Process services.msc
 })
 
-# @xxx - does this even accomplish anything?
-Register-EngineEvent -SourceIdentifier PowerShell.Exiting -SupportEvent -Action {
-	[System.Windows.Forms.Application]::Exit()
-}
-
+# let CTRL-C not be a Signal so we can't crash the GUI thread when run from the command line
+[console]::TreatControlCAsInput = $true
 $AppContext = New-Object System.Windows.Forms.ApplicationContext
 [void][System.Windows.Forms.Application]::Run($AppContext)
+$Host.UI.RawUI.FlushInputBuffer()
 
-# @fixme
-# cleanup - we should really shove this into some kind of exit handler (is there?)
-# so we clean up when exiting ungracefully?
+# cleanup - we should really shove this into some kind of exit handler (is there?) so we can clean up when
+# exiting ungracefully?
+# there is [System.Windows.Forms.Application]::Add_ApplicationExit() but there is no benefit in using that
+# because it won't be called when exiting ungracefully
+# there is also [System.Windows.Forms.Application]::Add_ThreadException() but I'm not sure how to recover
+# from within such a handler. it does silence the GUI dialog showing the stack trace but the message loop
+# has already crashed at that point and the UX is worse compared to simply disabling CTRL-C
 if ($Sync.Tray.Icon) {
 	$Sync.Tray.Icon.Dispose()
 }
